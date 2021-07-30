@@ -3,22 +3,22 @@
 #
 # You also need a cmake file for the poject where you link against the bare metal libary.
 
-set(TARGET_NAME efr32_bareMetal_example)
+set(CMAKE_PROJECT_NAME efr32_bareMetal_example)
 
 # Create the executable target
-add_executable(${TARGET_NAME}
+add_executable(${CMAKE_PROJECT_NAME}
                     startup_cortexM4.c 
                     main.c
 )
 
 # Link the libraries
-target_link_libraries (${TARGET_NAME} 
+target_link_libraries (${CMAKE_PROJECT_NAME} 
                         PUBLIC 
                             bareMetal_efr32
 )
 
 # Add the binary for flashing
-create_bin_output(${TARGET_NAME})
+create_bin_output(${CMAKE_PROJECT_NAME})
 
 # Show the section sizes of the elf file
-print_sizes(${TARGET_NAME})
+print_sizes(${CMAKE_PROJECT_NAME})

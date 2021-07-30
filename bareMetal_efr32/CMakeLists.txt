@@ -3,9 +3,9 @@
 # No sdk features supported here. Use the sdk_support library to include the 
 # silicon labs drivers.
 
-if (NOT DEFINED EFR32_LINKER_FILE)
+if (USE_BARE_METAL_EFR32_LINKER_FILE)
 set(EFR32_LINKER_FILE ${CMAKE_CURRENT_LIST_DIR}/efr32mg12p_minimal.ld)
-message("Using default linker file: ${EFR32_LINKER_FILE}")
+message("Using bare meal linker file: ${EFR32_LINKER_FILE}")
 endif()
 
 
@@ -38,15 +38,19 @@ set(EFR32_CXX_FLAGS
 # Set linker definitions
 set(EFR32_C_LFLAGS 
 	${EFR32_C_FLAGS} 
-	-Wl,-entry=ResetISR
-	-Wl,-T${EFR32_LINKER_FILE}
 	-Wl,-Map=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_PROJECT_NAME}.map)
+
+if (USE_BARE_METAL_EFR32_LINKER_FILE)
+	set(EFR32_C_LFLAGS ${EFR32_C_LFLAGS} -Wl,-T${EFR32_LINKER_FILE})
+endif()
 
 set(EFR32_CXX_LFLAGS
 	${EFR32_CXX_FLAGS}
-	-Wl,-entry=ResetISR
-	-Wl,-T${EFR32_LINKER_FILE}
 	-Wl,-Map=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_PROJECT_NAME}.map)
+
+if (USE_BARE_METAL_EFR32_LINKER_FILE)
+	set(EFR32_CXX_LFLAGS ${EFR32_C_LFLAGS} -Wl,-T${EFR32_LINKER_FILE})
+endif()
 
 # Set the compiler and linker flags. The public porperty exports these to the targets linking to this interface.
 target_compile_options(bareMetal_efr32
