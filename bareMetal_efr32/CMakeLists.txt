@@ -4,14 +4,11 @@
 # silicon labs drivers.
 
 if (USE_BARE_METAL_EFR32_LINKER_FILE)
-set(EFR32_LINKER_FILE ${CMAKE_CURRENT_LIST_DIR}/efr32mg12p_minimal.ld)
-message("Using bare meal linker file: ${EFR32_LINKER_FILE}")
+	set(EFR32_LINKER_FILE ${CMAKE_CURRENT_LIST_DIR}/efr32_minimal.ld)
+	message("Using bare meal linker file: ${EFR32_LINKER_FILE}")
 endif()
 
 
-if (NOT DEFINED EFR32_DEVICE)
-	error("No Device defined!")
-endif()
 
 # Add the library target
 add_library(bareMetal_efr32 INTERFACE)
@@ -21,8 +18,7 @@ set(EFR32_C_FLAGS
 	-mthumb 
 	-mcpu=cortex-m4
 	-mfpu=fpv4-sp-d16
-	-mfloat-abi=softfp
-	-D${EFR32_DEVICE})
+	-mfloat-abi=softfp)
 
 # Set assembler definitions
 set(EFR32_ASM_FLAGS
