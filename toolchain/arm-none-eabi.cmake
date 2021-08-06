@@ -4,6 +4,7 @@ set(CMAKE_SYSTEM_PROCESSOR          arm)
 if (NOT DEFINED ARM_TOOLCHAIN_PATH)
     set(ARM_TOOLCHAIN_PATH /opt/toolchain/gcc-arm-none-eabi-9-2020-q2-update/)
 endif ()
+message("Using arm toolchain in: ${ARM_TOOLCHAIN_PATH}")
 
 # Without this flag CMake is not able to pass test compilation check
 set(CMAKE_TRY_COMPILE_TARGET_TYPE   STATIC_LIBRARY)
