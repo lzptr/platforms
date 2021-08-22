@@ -4,12 +4,12 @@
 # silicon labs drivers.
 
 # Add the library target
-add_library(bareMetal_efr32 INTERFACE)
+add_library(bareMetal_efr32mg12p INTERFACE)
 
 # Set C definitions
 set(EFR32_C_FLAGS 
 	-mthumb 
-	-mcpu=cortex-4
+	-mcpu=cortex-m4
 	-mfpu=fpv4-sp-d16 
 	-mfloat-abi=softfp)
 
@@ -38,18 +38,18 @@ set(EFR32_CXX_LFLAGS
 
 
 # Set the compiler and linker flags
-target_compile_options(bareMetal_efr32
+target_compile_options(bareMetal_efr32mg12p
 	INTERFACE
 	$<$<COMPILE_LANGUAGE:ASM>:${EFR32_ASM_FLAGS}>
 	$<$<COMPILE_LANGUAGE:C>:${EFR32_C_LFLAGS}>
 	$<$<COMPILE_LANGUAGE:CXX>:${EFR32_CXX_LFLAGS}>)
 
-target_link_options(bareMetal_efr32
+target_link_options(bareMetal_efr32mg12p
 	INTERFACE 
 	$<$<COMPILE_LANGUAGE:C>:${EFR32_C_LFLAGS}>
 	$<$<COMPILE_LANGUAGE:CXX>:${EFR32_CXX_LFLAGS}>)
 
-target_include_directories(bareMetal_efr32
+target_include_directories(bareMetal_efr32mg12p
 INTERFACE 
 	${CMAKE_CURRENT_SOURCE_DIR}/include
 )
