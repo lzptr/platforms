@@ -6,6 +6,12 @@
 # Add the library target
 add_library(bareMetal_efr32mg12p INTERFACE)
 
+if (NOT DEFINED EFR32_LINKER_FILE)
+	set(EFR32_LINKER_FILE ${CMAKE_CURRENT_LIST_DIR}/efr32mg12p_minimal.ld)
+	message("Using default linker file: ${EFR32_LINKER_FILE}")
+endif()
+
+
 # Set C definitions
 set(EFR32_C_FLAGS 
 	-mthumb 
