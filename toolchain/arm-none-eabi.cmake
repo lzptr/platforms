@@ -22,7 +22,7 @@ set(CMAKE_STRIP                     ${ARM_TOOLCHAIN_PATH}bin/arm-none-eabi-strip
 set(CMAKE_C_FLAGS                   "-fdata-sections -ffunction-sections -Wl,--gc-sections" )
 set(CMAKE_CXX_FLAGS                 "${CMAKE_C_FLAGS}  -ffunction-sections -fdata-sections")
 
-set(CMAKE_C_FLAGS_DEBUG             "-O0 -g")
+set(CMAKE_C_FLAGS_DEBUG             "-O0 -g3")
 set(CMAKE_C_FLAGS_RELEASE           "-O2 -DNDEBUG")
 set(CMAKE_CXX_FLAGS_DEBUG           "${CMAKE_C_FLAGS_DEBUG}")
 set(CMAKE_CXX_FLAGS_RELEASE         "${CMAKE_C_FLAGS_RELEASE}")

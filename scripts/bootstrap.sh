@@ -22,7 +22,7 @@ GCC_ARM="gcc-arm-none-eabi"
 GCC_VERSION="10.3-2021.10"
 GCC_PLATFORM="x86_64-linux"
 OPENOCD="openocd"
-SEGGER="JLink_Linux_V758e_x86_64.tgz"
+SEGGER="JLink_Linux_V758e_x86_64"
 
 echo -e "${GREEN}Cleaning up old environment...${NC}"
 rm -rf ${TOOLCHAIN_DIR}/${GCC_ARM}-${GCC_VERSION}
@@ -63,9 +63,8 @@ echo -e "${GREEN}Getting Segger JLink...${NC}"
 if [[ $exit_code -ne 0 ]]; then
     echo -e "${RED}ERROR: Install of ${SEGGER} failed. Aborting installation.${NC}" && exit 1
 fi
-exit 1
 
-sudo cp ${TOOLCHAIN_DIR}/${SEGGER}/99-jlink.rules /etc/udev/rules.d/99-jlink.rule
+sudo cp ${TOOLCHAIN_DIR}/${SEGGER}/99-jlink.rules /etc/udev/rules.d/99-jlink.rules
 
 # There seems to be an issue with the udev on wsl2. Just restart and reload.
 if grep -q icrosoft /proc/version; then
