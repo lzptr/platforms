@@ -3,18 +3,18 @@
 #
 # You also need a cmake file for the poject where you link against the bare metal libary.
 
-set(CMAKE_PROJECT_NAME efr32_baremetal_example)
+set(CMAKE_PROJECT_NAME tm4c123_baremetal_example)
 
 # Create the executable target
 add_executable(${CMAKE_PROJECT_NAME}
-                    startup_efr32.c 
+                    startup_tm4c123.c 
                     main.c
 )
 
 # Link the libraries
 target_link_libraries (${CMAKE_PROJECT_NAME} 
                         PUBLIC 
-                            bareMetal_efr32
+                            bareMetal_tm4c123
 )
 
 # Add the binary for flashing
