@@ -17,7 +17,7 @@ set(EFR32_C_FLAGS
 	-mthumb 
 	-mcpu=cortex-m4
 	-mfpu=fpv4-sp-d16 
-	-mfloat-abi=softfp)
+	-mfloat-abi=hard)
 
 # Set assembler definitions
 set(EFR32_ASM_FLAGS

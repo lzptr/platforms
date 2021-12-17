@@ -26,14 +26,14 @@ SECTIONS
         __text_end_vma = .;
     } > FLASH
 
-    .data (NOLOAD):
+    .data :
     {
         __data_start_vma = .;
         *(.data*)
         __data_end_vma = .;
     } > SRAM AT > FLASH
 
-    .bss (NOLOAD):
+    .bss :
     {
         __bss_start_vma = .;
         *(.bss*)
