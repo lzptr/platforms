@@ -14,7 +14,7 @@ add_executable(${CMAKE_PROJECT_NAME}
 # Link the libraries
 target_link_libraries (${CMAKE_PROJECT_NAME} 
                         PUBLIC 
-                            bareMetal_efr32
+                            bareMetal_efr32mg12p
 )
 
 # Add the binary for flashing
