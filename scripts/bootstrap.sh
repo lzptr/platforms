@@ -1,227 +1,303 @@
 #!/bin/bash
 
-if [[ $EUID -eq 0 ]]; then
-	echo "Do not run this as the root user"
+echo "Checking Root Privileges"
+if [ "$(id -u)" -ne 0 ]; then
+	echo "Run script with administrator privileges"
 	exit 1
 fi
 
+TOOLCHAIN_DIR="/opt/toolchain"
+GCC_ONLINE_PATH="10.3-2021.10"
+GCC_ARM="gcc-arm-none-eabi"
+GCC_VERSION="10.3-2021.10"
+GCC_PLATFORM="x86_64-linux"
+JLINK_VERSION="JLink_Linux_V758e_x86_64"
+AM243_SDK_VERSION=""
+AM243_SYSCFG_VERSION=""
+AM243_PRU_VERSION="pru-software-support-package"
+
 RED='\033[0;31m'
-GREEN='\033[0;32m'        
+GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
-display_help() {
-    echo "Usage: $0  [--clean] [--gcc] [--jlink] [--openocd] [--orbuculum]" >&2
-    echo
-	echo "   default           When no opions are provided, the script checks which tools are installed and only installs the missing ones "
-    echo "   --clean           Clean /opt/toolchain folder before installing. Use this to reinstall everything "
-    echo "   --gcc             Install only gcc (can be combined with other options) "
-    echo "   --jlink           Install only jlink (can be combined with other options) "
-    echo "   --openocd         Install only openocd (can be combined with other options) "
-    echo "   --orbuculum       Install only orbuculum (can be combined with other options) "
-    echo
-    exit 1
-}
+GCC_INSTALL_PATH="${TOOLCHAIN_DIR}/${GCC_ARM:?}-${GCC_VERSION:?}"
+JLINK_INSTALL_PATH="${TOOLCHAIN_DIR}/${JLINK_VERSION}"
+OPENOCD_INSTALL_PATH="${TOOLCHAIN_DIR}/openocd"
+ORBUCULUM_INSTALL_PATH="${TOOLCHAIN_DIR}/orbuculum"
+AM243_SDK_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/${AM243_SDK_VERSION}"
+AM243_SYSCFG_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/${AM243_SYSCFG_VERSION}"
+AM243_PRU_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/${AM243_PRU_VERSION}"
 
-# TODO: Move to functions
-VALID_ARGS=$(getopt -o '' --long clean,gcc,jlink,openocd,orbuculum  -- "$@")
-if [[ $? -ne 0 ]]; then
-	display_help
-    exit 1;
-fi
+# Download Links
+GCC_DOWNLOAD_LINK="https://developer.arm.com/-/media/Files/downloads/gnu-rm/${GCC_ONLINE_PATH}/${GCC_ARM}-${GCC_VERSION}-${GCC_PLATFORM}.tar.bz2"
+JLINK_DOWNLOAD_LINK="https://www.segger.com/downloads/jlink/${JLINK_VERSION}.tgz"
+OPENOCD_DOWNLOAD_LINK="git://git.code.sf.net/p/openocd/code"
+ORBUCULUM_DOWNLOAD_LINK="https://github.com/orbcode/orbuculum.git"
+AM243_SDK_DOWNLOAD_LINK=""
+AM243_SYSCFG_DOWNLOAD_LINK=""
+AM243_PRU_DOWNLOAD_LINK="https://git.ti.com/cgit/pru-software-support-package/pru-software-support-package/"
 
-eval set -- "$VALID_ARGS"
-CLEAN=false
+# Global options
 GCC=false
 JLINK=false
 OPENOCD=false
 ORBUCULUM=false
-while [ "$#" -gt 0 ]; do
-  (( optionsPassed++ ))
-  case "$1" in
-        --clean )
-            CLEAN=true
+AM243=false
+
+display_help() {
+	echo "Usage: $0  [--clean] [--gcc] [--jlink] [--openocd] [--orbuculum]" >&2
+	echo
+	echo "   default           When no opions are provided, the script checks which tools are installed and only installs the missing ones "
+	echo "   --clean           Cleans /opt/toolchain folder. "
+	echo "   --gcc             Install only gcc (can be combined with other options) "
+	echo "   --jlink           Install only jlink (can be combined with other options) "
+	echo "   --openocd         Install only openocd (can be combined with other options) "
+	echo "   --orbuculum       Install only orbuculum (can be combined with other options) "
+	echo "   --am243       	   Install only am243 packages (can be combined with other options) "
+	echo
+	exit 1
+}
+
+parse_arguments() {
+	VALID_ARGS=$(getopt -o '' --long clean,gcc,jlink,openocd,orbuculum,am243 -- "$@")
+	if [[ $? -ne 0 ]]; then
+		display_help
+		exit 1
+	fi
+
+	eval set -- "$VALID_ARGS"
+	while [ "$#" -gt 0 ]; do
+		((optionsPassed++))
+		case "$1" in
+		--clean)
+			clean
 			shift
-            ;;
-        --gcc )
-            GCC=true
-			shift
-            ;;
-		--jlink )
-            JLINK=true
-			shift
-            ;;
-		--openocd )
-            OPENOCD=true
-			shift
-            ;;
-		--orbuculum )
-            ORBUCULUM=true
-			shift;
-            ;;
-		-- )
-			shift; 
-			break 
 			;;
-        * )
-            display_help
+		--gcc)
+			GCC=true
+			shift
+			;;
+		--jlink)
+			JLINK=true
+			shift
+			;;
+		--openocd)
+			OPENOCD=true
+			shift
+			;;
+		--orbuculum)
+			ORBUCULUM=true
+			shift
+			;;
+		--am243)
+			AM243=true
+			shift
+			;;
+		--)
 			shift
 			break
-            ;;
-    esac
-done
+			;;
+		*)
+			display_help
+			shift
+			break
+			;;
+		esac
+	done
 
-# Check if script was called with no options
-if [[ $optionsPassed -le 1 ]];then
-  	
-	# Default case. Install all tools
-	GCC=true
-	JLINK=true
-	OPENOCD=true
-	ORBUCULUM=true
-fi
+	# Check if script was called with no options
+	if [[ $optionsPassed -le 1 ]]; then
 
-TOOLCHAIN_DIR="/opt/toolchain"
-GCC_PATH="10.3-2021.10"
-GCC_ARM="gcc-arm-none-eabi"
-GCC_VERSION="10.3-2021.10"
-GCC_PLATFORM="x86_64-linux"
-OPENOCD_PATH="openocd"
-SEGGER_PATH="JLink_Linux_V758e_x86_64"
-ORBUCULUM_PATH="orbuculum"
+		# Default case. Install all tools
+		GCC=true
+		JLINK=true
+		OPENOCD=true
+		ORBUCULUM=true
+		AM243=true
+	fi
+}
 
-# TODO: Move to functions
-if $CLEAN; then
+clean() {
 
 	echo -e "${GREEN}Cleaning up old environment...${NC}"
-	rm -rf ${TOOLCHAIN_DIR}/${GCC_ARM:?}-${GCC_VERSION:?}
-	rm -rf ${TOOLCHAIN_DIR}/${OPENOCD_PATH:?}
-	rm -rf ${TOOLCHAIN_DIR}/${SEGGER_PATH:?}
-	rm -rf ${TOOLCHAIN_DIR}/${ORBUCULUM_PATH:?}
-	
-	# Reinstall all tools after clean
-	GCC=true
-	JLINK=true
-	OPENOCD=true
-	ORBUCULUM=true
-fi
+	rm -rf "${GCC_INSTALL_PATH:?}"
+	rm -rf "${JLINK_INSTALL_PATH:?}"
+	rm -rf "${ORBUCULUM_INSTALL_PATH:?}"
+	rm -rf "${AM243_SDK_INSTALL_PATH:?}"
+	rm -rf "${AM243_SYSCFG_INSTALL_PATH:?}"
+	rm -rf "${AM243_PRU_INSTALL_PATH:?}"
 
-echo -e "${GREEN}Installing toolchain dependencies...${NC}"
-# apt-get update and install dependencies
-sudo apt-get update -y \
-		&& sudo apt-get -y install -y curl build-essential libncurses5 cmake automake libtool \
-		&& sudo apt-get -y install pkg-config libusb-1.0-0-dev libhidapi-dev \
-		&& sudo apt-get -y install binutils-dev libelf-dev libncurses5-dev libftdi-dev libftdi1 \
+	if [ -d "${OPENOCD_INSTALL_PATH:?}" ]; then
+		cd "${OPENOCD_INSTALL_PATH:?}"
+		make uninstall
+		rm -rf "${OPENOCD_INSTALL_PATH:?}"
+	fi
 
-# Check installed tools
-if [ -d "${TOOLCHAIN_DIR}/${GCC_ARM:?}-${GCC_VERSION:?}" ] && $GCC ; then
-	echo "Found gcc in ${TOOLCHAIN_DIR}/${GCC_ARM:?}-${GCC_VERSION:?}. Skipping installation."
-	GCC=false
-fi
-if [ -d "${TOOLCHAIN_DIR}/${OPENOCD_PATH:?}" ] && $OPENOCD ; then
-	echo "Found openocd in ${TOOLCHAIN_DIR}/${OPENOCD_PATH:?}. Skipping installation."
-	OPENOCD=false
-fi
-if [ -d "${TOOLCHAIN_DIR}/${SEGGER_PATH:?}" ] && $JLINK ; then
-	echo "Found jlink in ${TOOLCHAIN_DIR}/${SEGGER_PATH:?}. Skipping installation."
-	JLINK=false
-fi
-if [ -d "${TOOLCHAIN_DIR}/${ORBUCULUM_PATH:?}" ] && $ORBUCULUM ; then
-	echo "Found orbuculum in ${TOOLCHAIN_DIR}/${ORBUCULUM_PATH:?}. Skipping installation."
-	ORBUCULUM=false
-fi
+	exit 1
+}
 
-# TODO: Move to functions
-if $GCC; then
+check_tools() {
+
+	# Check installed tools
+	if [ -d "${GCC_INSTALL_PATH:?}" ] && $GCC; then
+		echo "Found gcc in ${GCC_INSTALL_PATH:?}. Skipping installation."
+		GCC=false
+	fi
+
+	if [ -d "${JLINK_INSTALL_PATH:?}" ] && $JLINK; then
+		echo "Found jlink in ${JLINK_INSTALL_PATH:?}. Skipping installation."
+		JLINK=false
+	fi
+
+	if [ -d "${OPENOCD_INSTALL_PATH:?}" ] && $OPENOCD; then
+		echo "Found openocd in ${OPENOCD_INSTALL_PATH:?}. Skipping installation."
+		OPENOCD=false
+	fi
+
+	if [ -d "${ORBUCULUM_INSTALL_PATH:?}" ] && $ORBUCULUM; then
+		echo "Found orbuculum in ${ORBUCULUM_INSTALL_PATH:?}. Skipping installation."
+		ORBUCULUM=false
+	fi
+
+	if [ -d "${AM243_SDK_INSTALL_PATH:?}" ] &&
+		[ -d "${AM243_SYSCFG_INSTALL_PATH:?}" ] &&
+		[ -d "${AM243_PRU_INSTALL_PATH:?}" ] && $AM243; then
+
+		echo "Found am243 packages in ${AM243_SDK_INSTALL_PATH:?};${AM243_SYSCFG_INSTALL_PATH:?};${AM243_PRU_INSTALL_PATH:?}. Skipping installation."
+		AM243=false
+	fi
+}
+
+install_dependencies() {
+
+	echo -e "${GREEN}Installing toolchain dependencies...${NC}"
+	sudo apt-get update -y &&
+		sudo apt-get -y install -y build-essential libncurses5 cmake curl automake libtool &&
+		sudo apt-get -y install pkg-config libusb-1.0-0-dev libhidapi-dev &&
+		sudo apt-get -y install binutils-dev libelf-dev libncurses5-dev libftdi-dev libftdi1
+
+	apt-get autoremove -y && apt-get clean -y
+}
+
+install_gcc() {
 
 	echo -e "${GREEN}Getting GNU Arm Embedded Toolchain...${NC}"
-	sudo mkdir -p ${TOOLCHAIN_DIR}
-	sudo chown -R "$USER:$USER" ${TOOLCHAIN_DIR}
 
-	(cd /tmp \
-			&& wget --tries 4 --no-check-certificate -c https://developer.arm.com/-/media/Files/downloads/gnu-rm/${GCC_PATH}/${GCC_ARM}-${GCC_VERSION}-${GCC_PLATFORM}.tar.bz2 -O ${GCC_VERSION}.tar.bz2 \
-			&& tar xf ${GCC_VERSION}.tar.bz2 -C ${TOOLCHAIN_DIR})
+	(cd /tmp &&
+		wget --tries 4 --no-check-certificate -c "${GCC_DOWNLOAD_LINK}" -O ${GCC_VERSION}.tar.bz2 &&
+		tar xf ${GCC_VERSION}.tar.bz2 -C ${TOOLCHAIN_DIR})
 	exit_code=$?
 	if [[ $exit_code -ne 0 ]]; then
-		rm -rf ${TOOLCHAIN_DIR}/${GCC_ARM:?}-${GCC_VERSION:?}
+		rm -rf "${GCC_INSTALL_PATH:?}"
 		echo -e "${RED}ERROR: Install of ${GCC_VERSION} failed. Aborting installation.${NC}" && exit 1
 	fi
 
-	# Install gcc on system
-	sudo ln -sf ${GCC_ARM:?}-${GCC_VERSION:?}/bin/* /usr/local/bin
-fi
+	# Install arm-gcc on system
+	ln -sf "${GCC_INSTALL_PATH:?}"/bin/* /usr/local/bin
+	rm /tmp/${GCC_VERSION}.tar.bz2
+}
 
-# TODO: Move to functions
-if $OPENOCD; then
+install_jlink() {
 
-	echo -e "${GREEN}Building openocd...${NC}"
-	(cd ${TOOLCHAIN_DIR} \
-		&& git clone git://git.code.sf.net/p/openocd/code ${OPENOCD_PATH} \
-		&& cd ${OPENOCD_PATH}/ \
-		&& ./bootstrap \
-		&& ./configure --prefix=/usr --enable-maintainer-mode --enable-stlink --enable-ti-icdi --enable-xds110 --enable-cmsis-dap --enable-jlink --enable-armjtagew --enable-ftdi --enable-ft232r\
-		&& make )
+	echo -e "${GREEN}Getting JLink...${NC}"
+
+	(cd /tmp &&
+		wget --tries 4 --no-check-certificate --post-data="accept_license_agreement=accepted&submit=Download&nbspsoftware" -c "${JLINK_DOWNLOAD_LINK}" -O ${JLINK_VERSION}.tgz &&
+		tar xvzf ${JLINK_VERSION}.tgz -C ${TOOLCHAIN_DIR})
 	exit_code=$?
 	if [[ $exit_code -ne 0 ]]; then
-		rm -rf ${TOOLCHAIN_DIR}/${OPENOCD_PATH:?}
-		echo -e "${RED}ERROR: Building of ${OPENOCD_PATH} failed. Aborting installation.${NC}" && exit 1
+		rm -rf "${JLINK_INSTALL_PATH:?}"
+		echo -e "${RED}ERROR: Install of ${JLINK_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
+	fi
+
+	cp ${JLINK_INSTALL_PATH:?}/99-jlink.rules /etc/udev/rules.d/99-jlink.rules
+
+	# WSL2 udev bug fix
+	if grep -q icrosoft /proc/version; then
+		service udev restart
+		udevadm control --reload
+	fi
+
+	rm /tmp/${JLINK_VERSION}.tgz
+}
+
+install_openocd() {
+
+	echo -e "${GREEN}Building openocd...${NC}"
+
+	(cd ${TOOLCHAIN_DIR} &&
+		git clone ${OPENOCD_DOWNLOAD_LINK} ${OPENOCD_INSTALL_PATH} &&
+		cd "${OPENOCD_INSTALL_PATH:?}" &&
+		./bootstrap &&
+		./configure &&
+		make &&
+		make install)
+	exit_code=$?
+	if [[ $exit_code -ne 0 ]]; then
+		rm -rf "${OPENOCD_INSTALL_PATH:?}"
+		echo -e "${RED}ERROR: Building of ${OPENOCD_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
 	fi
 
 	# Add udev rules for OPENOCD_PATH
-	sudo cp ${TOOLCHAIN_DIR}/${OPENOCD_PATH}/contrib/60-OPENOCD_PATH.rules /etc/udev/rules.d/
+	cp "${OPENOCD_INSTALL_PATH:?}"/contrib/60-openocd.rules /etc/udev/rules.d/
 
-	# There seems to be an issue with the udev on wsl2. Just restart and reload.
+	# WSL2 udev bug fix
 	if grep -q icrosoft /proc/version; then
-		# Add windows WSL specific options here
-		# apply wsl2 fix
-		sudo service udev restart
-		sudo udevadm control --reload
+		service udev restart
+		udevadm control --reload
 	fi
-fi
+}
 
-# TODO: Move to functions
-if $JLINK; then
-	echo -e "${GREEN}Getting Segger_PATH JLink...${NC}"
-	(cd /tmp \
-			&& wget --tries 4 --no-check-certificate --post-data="accept_license_agreement=accepted&submit=Download&nbspsoftware" -c https://www.segger.com/downloads/jlink/${SEGGER_PATH}.tgz -O ${SEGGER_PATH}.tgz \
-			&& tar xvzf ${SEGGER_PATH}.tgz -C ${TOOLCHAIN_DIR} )
-	exit_code=$?
-	if [[ $exit_code -ne 0 ]]; then
-		rm -rf ${TOOLCHAIN_DIR}/${SEGGER_PATH:?}
-		echo -e "${RED}ERROR: Install of ${SEGGER_PATH} failed. Aborting installation.${NC}" && exit 1
-	fi
+install_orbuculum() {
 
-	sudo cp ${TOOLCHAIN_DIR}/${SEGGER_PATH}/99-jlink.rules /etc/udev/rules.d/99-jlink.rules
-
-	# There seems to be an issue with the udev on wsl2. Just restart and reload.
-	if grep -q icrosoft /proc/version; then
-		# Add windows WSL specific options here
-		# apply wsl2 fix
-		sudo service udev restart
-		sudo udevadm control --reload
-	fi
-fi 
-
-
-# TODO: Move to functions
-if $ORBUCULUM; then
 	echo -e "${GREEN}Building orbuculum_PATH...${NC}"
-	(cd ${TOOLCHAIN_DIR} \
-		&& git clone https://github.com/orbcode/orbuculum.git ${ORBUCULUM_PATH} --recursive \
-		&& cd ${ORBUCULUM_PATH}/ \
-		&& git checkout Devel \
-		&& make )
+	(cd ${TOOLCHAIN_DIR} &&
+		git clone ${ORBUCULUM_DOWNLOAD_LINK} ${ORBUCULUM_INSTALL_PATH} --recursive &&
+		cd "${ORBUCULUM_INSTALL_PATH:?}" &&
+		git checkout Devel &&
+		make)
 	exit_code=$?
 	if [[ $exit_code -ne 0 ]]; then
-		rm -rf ${TOOLCHAIN_DIR}/${ORBUCULUM_PATH:?}
-		echo -e "${RED}ERROR: Building of ${ORBUCULUM_PATH} failed. Aborting installation.${NC}" && exit 1
+		rm -rf ${TOOLCHAIN_DIR}/${ORBUCULUM_INSTALL_PATH:?}
+		echo -e "${RED}ERROR: Building of ${ORBUCULUM_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
 	fi
 
 	# Install orbuculum on system
-	sudo ln -sf ${TOOLCHAIN_DIR}/${ORBUCULUM_PATH}/ofiles/orb* /usr/local/bin
-fi
+	sudo ln -sf ${TOOLCHAIN_DIR}/${ORBUCULUM_INSTALL_PATH}/ofiles/orb* /usr/local/bin
+}
 
-# Clean up
-sudo apt-get autoremove -y \
-		&& sudo apt-get clean -y
-rm /tmp/${GCC_VERSION}.tar.bz2
-rm /tmp/${SEGGER_PATH}.tgz
+install_packages() {
+	install_dependencies
+
+	mkdir -p ${TOOLCHAIN_DIR}
+
+	if $GCC; then
+		install_gcc
+	fi
+
+	if $JLINK; then
+		install_jlink
+	fi
+
+	if $OPENOCD; then
+		install_openocd
+	fi
+
+	if $ORBUCULUM; then
+		install_orbuculum
+	fi
+
+	if $AM243; then
+		echo "AM243 not implemented yet"
+	fi
+
+	echo -e "${GREEN}Bootstrap completed successfully.${NC}"
+}
+
+main() {
+	parse_arguments "$@"
+	check_tools
+	install_packages
+}
+
+main "$@"
