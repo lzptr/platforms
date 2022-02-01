@@ -2,7 +2,7 @@ set(CMAKE_SYSTEM_NAME               Generic)
 set(CMAKE_SYSTEM_PROCESSOR          arm)
 
 if (NOT DEFINED ARM_TOOLCHAIN_PATH)
-    set(ARM_TOOLCHAIN_PATH /opt/toolchain/gcc-arm-none-eabi-9-2020-q2-update/)
+    set(SEND_ERROR "Please provide a path to the arm toolchain (ARM_TOOLCHAIN_PATH)")
 endif ()
 message("Using arm toolchain in: ${ARM_TOOLCHAIN_PATH}")
 

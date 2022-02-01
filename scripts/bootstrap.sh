@@ -12,9 +12,10 @@ GCC_ARM="gcc-arm-none-eabi"
 GCC_VERSION="10.3-2021.10"
 GCC_PLATFORM="x86_64-linux"
 JLINK_VERSION="JLink_Linux_V758e_x86_64"
-AM243_SDK_VERSION=""
-AM243_SYSCFG_VERSION=""
-AM243_PRU_VERSION="pru-software-support-package"
+AM243_SDK_VERSION="08_01_00_36"
+AM243_SYSCFG_VERSION="sysconfig-1.11.0_2225"
+AM243_PRU_COMPILER_VERSION="2.3.3"
+AM243_PRU_SUPPORT_VERSION="pru-software-support-package"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -24,18 +25,20 @@ GCC_INSTALL_PATH="${TOOLCHAIN_DIR}/${GCC_ARM:?}-${GCC_VERSION:?}"
 JLINK_INSTALL_PATH="${TOOLCHAIN_DIR}/${JLINK_VERSION}"
 OPENOCD_INSTALL_PATH="${TOOLCHAIN_DIR}/openocd"
 ORBUCULUM_INSTALL_PATH="${TOOLCHAIN_DIR}/orbuculum"
-AM243_SDK_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/${AM243_SDK_VERSION}"
+AM243_SDK_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/mcu_plus_sdk_am243x_${AM243_SDK_VERSION}"
 AM243_SYSCFG_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/${AM243_SYSCFG_VERSION}"
-AM243_PRU_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/${AM243_PRU_VERSION}"
+AM243_PRU_COMPILER_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/ti-cgt-pru_${AM243_PRU_COMPILER_VERSION}"
+AM243_PRU_SUPPORT_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/${AM243_PRU_SUPPORT_VERSION}"
 
 # Download Links
 GCC_DOWNLOAD_LINK="https://developer.arm.com/-/media/Files/downloads/gnu-rm/${GCC_ONLINE_PATH}/${GCC_ARM}-${GCC_VERSION}-${GCC_PLATFORM}.tar.bz2"
 JLINK_DOWNLOAD_LINK="https://www.segger.com/downloads/jlink/${JLINK_VERSION}.tgz"
 OPENOCD_DOWNLOAD_LINK="git://git.code.sf.net/p/openocd/code"
 ORBUCULUM_DOWNLOAD_LINK="https://github.com/orbcode/orbuculum.git"
-AM243_SDK_DOWNLOAD_LINK=""
-AM243_SYSCFG_DOWNLOAD_LINK=""
-AM243_PRU_DOWNLOAD_LINK="https://git.ti.com/cgit/pru-software-support-package/pru-software-support-package/"
+AM243_SDK_DOWNLOAD_LINK="https://software-dl.ti.com/mcu-plus-sdk/esd/AM243X/${AM243_SDK_VERSION}/exports/mcu_plus_sdk_am243x_${AM243_SDK_VERSION}-linux-x64-installer.run"
+AM243_SYSCFG_DOWNLOAD_LINK="https://software-dl.ti.com/ccs/esd/sysconfig/${AM243_SYSCFG_VERSION}-setup.run"
+AM243_PRU_COMPILER_DONWLOAD_LINK="https://software-dl.ti.com/codegen/esd/cgt_public_sw/PRU/${AM243_PRU_COMPILER_VERSION}/ti_cgt_pru_${AM243_PRU_COMPILER_VERSION}_linux_installer_x86.bin"
+AM243_PRU_SUPPORT_DOWNLOAD_LINK="https://git.ti.com/cgit/pru-software-support-package/pru-software-support-package/"
 
 # Global options
 GCC=false
@@ -125,8 +128,9 @@ clean() {
 	rm -rf "${ORBUCULUM_INSTALL_PATH:?}"
 	rm -rf "${AM243_SDK_INSTALL_PATH:?}"
 	rm -rf "${AM243_SYSCFG_INSTALL_PATH:?}"
-	rm -rf "${AM243_PRU_INSTALL_PATH:?}"
-
+	rm -rf "${AM243_PRU_COMPILER_INSTALL_PATH:?}"
+	rm -rf "${AM243_PRU_SUPPORT_INSTALL_PATH:?}"
+	
 	if [ -d "${OPENOCD_INSTALL_PATH:?}" ]; then
 		cd "${OPENOCD_INSTALL_PATH:?}"
 		make uninstall
@@ -161,9 +165,15 @@ check_tools() {
 
 	if [ -d "${AM243_SDK_INSTALL_PATH:?}" ] &&
 		[ -d "${AM243_SYSCFG_INSTALL_PATH:?}" ] &&
-		[ -d "${AM243_PRU_INSTALL_PATH:?}" ] && $AM243; then
+		[ -d "${AM243_PRU_COMPILER_INSTALL_PATH:?}" ] && 
+		[ -d "${AM243_PRU_SUPPORT_INSTALL_PATH:?}" ] && $AM243; then
 
-		echo "Found am243 packages in ${AM243_SDK_INSTALL_PATH:?};${AM243_SYSCFG_INSTALL_PATH:?};${AM243_PRU_INSTALL_PATH:?}. Skipping installation."
+		echo "Found am243 packages in " \	
+				"${AM243_SDK_INSTALL_PATH:?};" \
+				"${AM243_SYSCFG_INSTALL_PATH:?};" \
+				"${AM243_PRU_COMPILER_INSTALL_PATH:?};" \
+				"${AM243_PRU_SUPPORT_INSTALL_PATH:?}." \
+				"Skipping installation."
 		AM243=false
 	fi
 }
@@ -181,7 +191,7 @@ install_dependencies() {
 
 install_gcc() {
 
-	echo -e "${GREEN}Getting GNU Arm Embedded Toolchain...${NC}"
+	echo -e "${GREEN}Getting GNU Arm GCC Toolchain...${NC}"
 
 	(cd /tmp &&
 		wget --tries 4 --no-check-certificate -c "${GCC_DOWNLOAD_LINK}" -O ${GCC_VERSION}.tar.bz2 &&
@@ -250,7 +260,7 @@ install_openocd() {
 
 install_orbuculum() {
 
-	echo -e "${GREEN}Building orbuculum_PATH...${NC}"
+	echo -e "${GREEN}Building orbuculum...${NC}"
 	(cd ${TOOLCHAIN_DIR} &&
 		git clone ${ORBUCULUM_DOWNLOAD_LINK} ${ORBUCULUM_INSTALL_PATH} --recursive &&
 		cd "${ORBUCULUM_INSTALL_PATH:?}" &&
@@ -264,6 +274,62 @@ install_orbuculum() {
 
 	# Install orbuculum on system
 	sudo ln -sf ${TOOLCHAIN_DIR}/${ORBUCULUM_INSTALL_PATH}/ofiles/orb* /usr/local/bin
+}
+
+install_am243() {
+
+	echo -e "${GREEN}Installing am243 packages...${NC}"
+
+	# Download and install am243 mcu sdk
+	(cd /tmp \
+		&& wget --tries 4 --no-check-certificate -c "${AM243_SDK_DOWNLOAD_LINK}" -O ${AM243_SDK_VERSION}.run \
+		&& chmod 744 ${AM243_SDK_VERSION}.run \
+		&& ./${AM243_SDK_VERSION}.run --prefix "${TOOLCHAIN_DIR}/ti/" --mode unattended \
+		&& rm ${AM243_SDK_VERSION}.run)
+	exit_code=$?
+    if [[ $exit_code -ne 0 ]]; then
+        rm -rf "${AM243_SDK_INSTALL_PATH:?}"
+        echo -e "${RED}ERROR: Install of ${AM243_SDK_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
+    fi
+
+	# Download and install sysconfig tool
+	(cd /tmp \
+		&& wget --tries 4 --no-check-certificate -c "${AM243_SYSCFG_DOWNLOAD_LINK}" -O ${AM243_SYSCFG_VERSION}.run \
+		&& chmod 744 ${AM243_SYSCFG_VERSION}.run \
+		&& ./${AM243_SYSCFG_VERSION}.run --prefix "${AM243_SYSCFG_INSTALL_PATH}" --mode unattended \
+		&& rm ${AM243_SYSCFG_VERSION}.run)
+	exit_code=$?
+    if [[ $exit_code -ne 0 ]]; then
+		rm -rf "${AM243_SDK_INSTALL_PATH:?}"
+        rm -rf "${AM243_SYSCFG_INSTALL_PATH:?}"
+        echo -e "${RED}ERROR: Install of ${AM243_SYSCFG_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
+    fi
+
+	# Download and install pru compiler
+	(cd /tmp \
+		&& wget --tries 4 --no-check-certificate -c "${AM243_PRU_COMPILER_DONWLOAD_LINK}" -O ${AM243_PRU_COMPILER_VERSION}.bin \
+		&& chmod 744 ${AM243_PRU_COMPILER_VERSION}.bin \
+		&& ./${AM243_PRU_COMPILER_VERSION}.bin --prefix "${TOOLCHAIN_DIR}/ti/" --mode unattended \
+		&& rm ${AM243_PRU_COMPILER_VERSION}.bin)
+	exit_code=$?
+    if [[ $exit_code -ne 0 ]]; then
+		rm -rf "${AM243_SDK_INSTALL_PATH:?}"
+        rm -rf "${AM243_SYSCFG_INSTALL_PATH:?}"
+        rm -rf "${AM243_PRU_COMPILER_INSTALL_PATH:?}"
+        echo -e "${RED}ERROR: Install of ${AM243_PRU_COMPILER_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
+    fi
+
+	# Download and install pru suport package
+	(cd ${TOOLCHAIN_DIR}/ti &&
+        git clone ${AM243_PRU_SUPPORT_DOWNLOAD_LINK} ${AM243_PRU_SUPPORT_VERSION})
+    exit_code=$?
+    if [[ $exit_code -ne 0 ]]; then
+		rm -rf "${AM243_SDK_INSTALL_PATH:?}"
+        rm -rf "${AM243_SYSCFG_INSTALL_PATH:?}"
+        rm -rf "${AM243_PRU_COMPILER_INSTALL_PATH:?}"
+        rm -rf "${AM243_PRU_SUPPORT_INSTALL_PATH:?}"
+        echo -e "${RED}ERROR: Install of ${AM243_PRU_SUPPORT_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
+    fi
 }
 
 install_packages() {
@@ -288,7 +354,7 @@ install_packages() {
 	fi
 
 	if $AM243; then
-		echo "AM243 not implemented yet"
+		install_am243
 	fi
 
 	echo -e "${GREEN}Bootstrap completed successfully.${NC}"
