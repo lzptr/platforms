@@ -2,7 +2,7 @@
 project(bareMetal_am2434_r5)
 
 if (NOT DEFINED AM2434_R5_LINKER_FILE)
-    set(AM2434_R5_LINKER_FILE ${CMAKE_CURRENT_LIST_DIR}/linker.ld)
+    set(SEND_ERROR "Please provide a linker file (AM2434_R5_LINKER_FILE)")
 endif()
 
 message("Using linker file: ${AM2434_R5_LINKER_FILE}")
@@ -44,15 +44,11 @@ set(AM2434_CXX_FLAGS
 # Set linker definitions needed to link the binary for the AM2434
 set(AM2434_C_LFLAGS 
     ${AM2434_C_FLAGS} 
-    -Wl,-entry=_c_int00
-    -Wl,-T${AM2434_R5_LINKER_FILE}
-    -Wl,-Map=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_PROJECT_NAME}.map)
+    -Wl,-entry=_c_int00)
 
 set(AM2434_CXX_LFLAGS
     ${AM2434_CXX_FLAGS}
-    -Wl,-entry=_c_int00
-    -Wl,-T${AM2434_R5_LINKER_FILE}
-    -Wl,-Map=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_PROJECT_NAME}.map)
+    -Wl,-entry=_c_int00)
 
 # Set the compiler and linker flags. The public porperty exports these to the targets linking to this interface.
 target_compile_options(${PROJECT_NAME}
