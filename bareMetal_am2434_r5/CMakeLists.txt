@@ -14,11 +14,43 @@ file(GLOB _AM243_KERNEL_COMMON_FILES ${MCU_SDK_PATH}/source/kernel/nortos/dpl/co
 file(GLOB _AM243_KERNEL_R5_C_FILES ${MCU_SDK_PATH}/source/kernel/nortos/dpl/r5/*.c)
 file(GLOB _AM243_KERNEL_R5_ASM_FILES ${MCU_SDK_PATH}/source/kernel/nortos/dpl/r5/*.S)
 
+# Add all drivers
+file(GLOB_RECURSE _AM243_DRIVER_FILES 
+            ${MCU_SDK_PATH}/source/drivers/adc/v0/*.c
+            ${MCU_SDK_PATH}/source/drivers/bootloader/v0/*.c
+            #${MCU_SDK_PATH}/source/drivers/ddr/v0/*.c
+            ${MCU_SDK_PATH}/source/drivers/crc/v0/*.c
+            ${MCU_SDK_PATH}/source/drivers/ecap/v0/*.c
+            ${MCU_SDK_PATH}/source/drivers/epwm/v0/*.c
+            ${MCU_SDK_PATH}/source/drivers/eqep/v0/*.c
+            ${MCU_SDK_PATH}/source/drivers/fsi/v0/*.c
+            ${MCU_SDK_PATH}/source/drivers/gpio/v0/*.c
+            ${MCU_SDK_PATH}/source/drivers/gtc/v0/*.c
+            ${MCU_SDK_PATH}/source/drivers/i2c/v0/*.c
+            ${MCU_SDK_PATH}/source/drivers/ipc_notify/v0/*.c
+            ${MCU_SDK_PATH}/source/drivers/ipc_rpmsg/v0/*.c
+            ${MCU_SDK_PATH}/source/drivers/mcan/v0/*.c
+            ${MCU_SDK_PATH}/source/drivers/mcspi/v0/*.c
+            ${MCU_SDK_PATH}/source/drivers/mmcsd/v0/*.c
+            #${MCU_SDK_PATH}/source/drivers/mpu_firewall/v0/*.c
+            ${MCU_SDK_PATH}/source/drivers/ospi/v0/*.c
+            ${MCU_SDK_PATH}/source/drivers/pinmux/*.c
+            ${MCU_SDK_PATH}/source/drivers/pruicss/v0/*.c
+            ${MCU_SDK_PATH}/source/drivers/sciclient/*.c
+            ${MCU_SDK_PATH}/source/drivers/soc/*.c
+            ${MCU_SDK_PATH}/source/drivers/spinlock/v0/*.c
+            ${MCU_SDK_PATH}/source/drivers/uart/v0/*.c
+            ${MCU_SDK_PATH}/source/drivers/udma/v0/*.c
+            ${MCU_SDK_PATH}/source/drivers/watchdog/v0/*.c
+)
+
 # Add the library target
 add_library(${PROJECT_NAME} STATIC
                 ${_AM243_KERNEL_COMMON_FILES}
                 ${_AM243_KERNEL_R5_C_FILES}
-                ${_AM243_KERNEL_R5_ASM_FILES})
+                ${_AM243_KERNEL_R5_ASM_FILES}
+                ${_AM243_DRIVER_FILES}
+)
 
 # Set compiler definitions needed to compile for the AM2434
 set(AM2434_C_FLAGS 
@@ -65,6 +97,8 @@ target_link_options(${PROJECT_NAME}
 target_include_directories(${PROJECT_NAME}
                             PUBLIC
                             ${MCU_SDK_PATH}/source
+                            ${MCU_SDK_PATH}/source/drivers
+                            ${MCU_SDK_PATH}/source/hw_include  
                             PRIVATE
                             ${MCU_SDK_PATH}/source/kernel/nortos/dpl/common
                             ${MCU_SDK_PATH}/source/kernel/nortos/dpl/r5)

@@ -12,8 +12,9 @@ GCC_ARM="gcc-arm-none-eabi"
 GCC_VERSION="10.3-2021.10"
 GCC_PLATFORM="x86_64-linux"
 JLINK_VERSION="JLink_Linux_V758e_x86_64"
-AM243_SDK_VERSION="08_01_00_36"
-AM243_SYSCFG_VERSION="sysconfig-1.11.0_2225"
+AM243_SDK_VERSION="08_02_00_31"
+AM243_SYSCFG_VERSION="1.12.1" 
+AM243_SYSCFG_BUILD_VERSION="2446"
 AM243_PRU_COMPILER_VERSION="2.3.3"
 AM243_PRU_SUPPORT_VERSION="pru-software-support-package"
 
@@ -26,7 +27,7 @@ JLINK_INSTALL_PATH="${TOOLCHAIN_DIR}/${JLINK_VERSION}"
 OPENOCD_INSTALL_PATH="${TOOLCHAIN_DIR}/openocd"
 ORBUCULUM_INSTALL_PATH="${TOOLCHAIN_DIR}/orbuculum"
 AM243_SDK_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/mcu_plus_sdk_am243x_${AM243_SDK_VERSION}"
-AM243_SYSCFG_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/${AM243_SYSCFG_VERSION}"
+AM243_SYSCFG_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/sysconfig-${AM243_SYSCFG_VERSION}_${AM243_SYSCFG_BUILD_VERSION}"
 AM243_PRU_COMPILER_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/ti-cgt-pru_${AM243_PRU_COMPILER_VERSION}"
 AM243_PRU_SUPPORT_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/${AM243_PRU_SUPPORT_VERSION}"
 
@@ -36,7 +37,7 @@ JLINK_DOWNLOAD_LINK="https://www.segger.com/downloads/jlink/${JLINK_VERSION}.tgz
 OPENOCD_DOWNLOAD_LINK="git://git.code.sf.net/p/openocd/code"
 ORBUCULUM_DOWNLOAD_LINK="https://github.com/orbcode/orbuculum.git"
 AM243_SDK_DOWNLOAD_LINK="https://software-dl.ti.com/mcu-plus-sdk/esd/AM243X/${AM243_SDK_VERSION}/exports/mcu_plus_sdk_am243x_${AM243_SDK_VERSION}-linux-x64-installer.run"
-AM243_SYSCFG_DOWNLOAD_LINK="https://software-dl.ti.com/ccs/esd/sysconfig/${AM243_SYSCFG_VERSION}-setup.run"
+AM243_SYSCFG_DOWNLOAD_LINK="https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-nsUM6f7Vvb/${AM243_SYSCFG_VERSION}.${AM243_SYSCFG_BUILD_VERSION}/sysconfig-${AM243_SYSCFG_VERSION}_${AM243_SYSCFG_BUILD_VERSION}-setup.run"
 AM243_PRU_COMPILER_DONWLOAD_LINK="https://software-dl.ti.com/codegen/esd/cgt_public_sw/PRU/${AM243_PRU_COMPILER_VERSION}/ti_cgt_pru_${AM243_PRU_COMPILER_VERSION}_linux_installer_x86.bin"
 AM243_PRU_SUPPORT_DOWNLOAD_LINK="https://git.ti.com/cgit/pru-software-support-package/pru-software-support-package/"
 
@@ -280,17 +281,30 @@ install_am243() {
 
 	echo -e "${GREEN}Installing am243 packages...${NC}"
 
-	# Download and install am243 mcu sdk
-	(cd /tmp \
-		&& wget --tries 4 --no-check-certificate -c "${AM243_SDK_DOWNLOAD_LINK}" -O ${AM243_SDK_VERSION}.run \
-		&& chmod 744 ${AM243_SDK_VERSION}.run \
-		&& ./${AM243_SDK_VERSION}.run --prefix "${TOOLCHAIN_DIR}/ti/" --mode unattended \
-		&& rm ${AM243_SDK_VERSION}.run)
-	exit_code=$?
-    if [[ $exit_code -ne 0 ]]; then
-        rm -rf "${AM243_SDK_INSTALL_PATH:?}"
-        echo -e "${RED}ERROR: Install of ${AM243_SDK_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
-    fi
+	# Download and install am243 mcu sdk (needs manual download for latest version)
+	if [ $AM243_SDK_VERSION != "08_02_00_31" ]; then
+		(cd /tmp \
+			&& wget --tries 4 --no-check-certificate -c "${AM243_SDK_DOWNLOAD_LINK}" -O ${AM243_SDK_VERSION}.run \
+			&& chmod 744 ${AM243_SDK_VERSION}.run \
+			&& ./${AM243_SDK_VERSION}.run --prefix "${TOOLCHAIN_DIR}/ti/" --mode unattended \
+			&& rm ${AM243_SDK_VERSION}.run)
+		exit_code=$?
+		if [[ $exit_code -ne 0 ]]; then
+		    rm -rf "${AM243_SDK_INSTALL_PATH:?}"
+		    echo -e "${RED}ERROR: Install of ${AM243_SDK_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
+		fi
+	else
+
+		# Download latest version and save it in the tmp folder
+		(cd /tmp \
+			&& chmod 744 ${AM243_SDK_VERSION}.run \
+			&& ./${AM243_SDK_VERSION}.run --prefix "${TOOLCHAIN_DIR}/ti/" --mode unattended )
+		exit_code=$?
+		if [[ $exit_code -ne 0 ]]; then
+			rm -rf "${AM243_SDK_INSTALL_PATH:?}"
+			echo -e "${RED}ERROR: Install of ${AM243_SDK_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
+		fi
+	fi
 
 	# Download and install sysconfig tool
 	(cd /tmp \
