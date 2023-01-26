@@ -1,8 +1,7 @@
 project(bareMetal_xmc4800)
 
 if (NOT DEFINED XMC4800_LINKER_FILE)
-        set(XMC4800_LINKER_FILE ${CMAKE_CURRENT_LIST_DIR}/mtb-xmclib-cat3/CMSIS/Infineon/COMPONENT_XMC4800/Source/TOOLCHAIN_GCC_ARM/XMC4800x2048.ld)
-        message("Using default linker file: ${XMC4800_LINKER_FILE}")
+        set(SEND_ERROR "Please provide a linker file (XMC4800_LINKER_FILE)")
 endif()
 
 
