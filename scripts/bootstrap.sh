@@ -11,7 +11,9 @@ GCC_ONLINE_PATH="10.3-2021.10"
 GCC_ARM="gcc-arm-none-eabi"
 GCC_VERSION="10.3-2021.10"
 GCC_PLATFORM="x86_64-linux"
+
 JLINK_VERSION="JLink_Linux_V758e_x86_64"
+
 AM243_SDK_VERSION="08_02_00_31"
 AM243_SYSCFG_VERSION="1.12.1" 
 AM243_SYSCFG_BUILD_VERSION="2446"
@@ -30,6 +32,8 @@ AM243_SDK_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/mcu_plus_sdk_am243x_${AM243_SDK_VERS
 AM243_SYSCFG_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/sysconfig-${AM243_SYSCFG_VERSION}_${AM243_SYSCFG_BUILD_VERSION}"
 AM243_PRU_COMPILER_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/ti-cgt-pru_${AM243_PRU_COMPILER_VERSION}"
 AM243_PRU_SUPPORT_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/${AM243_PRU_SUPPORT_VERSION}"
+AM243_PRU_SUPPORT_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/${AM243_PRU_SUPPORT_VERSION}"
+PICO_SDK_INSTALL_PATH="${TOOLCHAIN_DIR}/pico/"
 
 # Download Links
 GCC_DOWNLOAD_LINK="https://developer.arm.com/-/media/Files/downloads/gnu-rm/${GCC_ONLINE_PATH}/${GCC_ARM}-${GCC_VERSION}-${GCC_PLATFORM}.tar.bz2"
@@ -40,6 +44,7 @@ AM243_SDK_DOWNLOAD_LINK="https://software-dl.ti.com/mcu-plus-sdk/esd/AM243X/${AM
 AM243_SYSCFG_DOWNLOAD_LINK="https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-nsUM6f7Vvb/${AM243_SYSCFG_VERSION}.${AM243_SYSCFG_BUILD_VERSION}/sysconfig-${AM243_SYSCFG_VERSION}_${AM243_SYSCFG_BUILD_VERSION}-setup.run"
 AM243_PRU_COMPILER_DONWLOAD_LINK="https://software-dl.ti.com/codegen/esd/cgt_public_sw/PRU/${AM243_PRU_COMPILER_VERSION}/ti_cgt_pru_${AM243_PRU_COMPILER_VERSION}_linux_installer_x86.bin"
 AM243_PRU_SUPPORT_DOWNLOAD_LINK="https://git.ti.com/cgit/pru-software-support-package/pru-software-support-package/"
+PICO_SDK_DOWNLOAD_LINK="https://github.com/raspberrypi/pico-sdk"
 
 # Global options
 GCC=false
@@ -47,9 +52,10 @@ JLINK=false
 OPENOCD=false
 ORBUCULUM=false
 AM243=false
+PICO_SDK=false
 
 display_help() {
-	echo "Usage: $0  [--clean] [--gcc] [--jlink] [--openocd] [--orbuculum]" >&2
+	echo "Usage: $0  [--clean] [--gcc] [--jlink] [--openocd] [--orbuculum] [--pico_sdk]" >&2
 	echo
 	echo "   default           When no opions are provided, the script checks which tools are installed and only installs the missing ones "
 	echo "   --clean           Cleans /opt/toolchain folder. "
@@ -58,12 +64,13 @@ display_help() {
 	echo "   --openocd         Install only openocd (can be combined with other options) "
 	echo "   --orbuculum       Install only orbuculum (can be combined with other options) "
 	echo "   --am243       	   Install only am243 packages (can be combined with other options) "
+	echo "   --pico_sdk		   Install only the pico_sdk (can be combined with other options) "
 	echo
 	exit 1
 }
 
 parse_arguments() {
-	VALID_ARGS=$(getopt -o '' --long clean,gcc,jlink,openocd,orbuculum,am243 -- "$@")
+	VALID_ARGS=$(getopt -o '' --long clean,gcc,jlink,openocd,orbuculum,am243,pico_sdk -- "$@")
 	if [[ $? -ne 0 ]]; then
 		display_help
 		exit 1
@@ -97,6 +104,10 @@ parse_arguments() {
 			AM243=true
 			shift
 			;;
+		--pico_sdk)
+			PICO_SDK=true
+			shift
+			;;
 		--)
 			shift
 			break
@@ -118,6 +129,7 @@ parse_arguments() {
 		OPENOCD=true
 		ORBUCULUM=true
 		AM243=true
+		PICO_SDK=true
 	fi
 }
 
@@ -131,6 +143,7 @@ clean() {
 	rm -rf "${AM243_SYSCFG_INSTALL_PATH:?}"
 	rm -rf "${AM243_PRU_COMPILER_INSTALL_PATH:?}"
 	rm -rf "${AM243_PRU_SUPPORT_INSTALL_PATH:?}"
+	rm -rf "${PICO_SDK_INSTALL_PATH:?}"
 	
 	if [ -d "${OPENOCD_INSTALL_PATH:?}" ]; then
 		cd "${OPENOCD_INSTALL_PATH:?}"
@@ -162,6 +175,11 @@ check_tools() {
 	if [ -d "${ORBUCULUM_INSTALL_PATH:?}" ] && $ORBUCULUM; then
 		echo "Found orbuculum in ${ORBUCULUM_INSTALL_PATH:?}. Skipping installation."
 		ORBUCULUM=false
+	fi
+
+	if [ -d "${PICO_SDK_INSTALL_PATH:?}" ] && $PICO_SDK; then
+		echo "Found pico_sdk in ${PICO_SDK_INSTALL_PATH:?}. Skipping installation."
+		PICO_SDK=false
 	fi
 
 	if [ -d "${AM243_SDK_INSTALL_PATH:?}" ] &&
@@ -346,6 +364,25 @@ install_am243() {
     fi
 }
 
+install_pico_sdk() {
+
+	echo -e "${GREEN}Installing pico sdk...${NC}"
+
+	(cd ${TOOLCHAIN_DIR} &&
+		git clone ${PICO_SDK_DOWNLOAD_LINK} ${PICO_SDK_INSTALL_PATH} --recursive)
+	exit_code=$?
+	if [[ $exit_code -ne 0 ]]; then
+		rm -rf "${PICO_SDK_INSTALL_PATH:?}"
+		echo -e "${RED}ERROR: Isntalling ${PICO_SDK_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
+	fi
+
+	 # Define PICO_SDK_PATH in ~/.bashrc
+	VARNAME="PICO_SDK_PATH"
+	echo -e "Adding $VARNAME to ~/.bashrc"
+	echo -e "export $VARNAME=$PICO_SDK_INSTALL_PATH" >> ~/.bashrc
+	export ${VARNAME}=${PICO_SDK_INSTALL_PATH}
+}
+
 install_packages() {
 	install_dependencies
 
@@ -369,6 +406,10 @@ install_packages() {
 
 	if $AM243; then
 		install_am243
+	fi
+
+	if $PICO_SDK; then
+		install_pico_sdk
 	fi
 
 	echo -e "${GREEN}Bootstrap completed successfully.${NC}"
