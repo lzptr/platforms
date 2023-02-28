@@ -6,13 +6,14 @@ if [ "$(id -u)" -ne 0 ]; then
 	exit 1
 fi
 
-TOOLCHAIN_DIR="/opt/toolchain"
-GCC_ONLINE_PATH="10.3-2021.10"
-GCC_ARM="gcc-arm-none-eabi"
-GCC_VERSION="10.3-2021.10"
-GCC_PLATFORM="x86_64-linux"
 
-JLINK_VERSION="JLink_Linux_V758e_x86_64"
+TOOLCHAIN_DIR="/opt/toolchain"
+GCC_ONLINE_PATH="12.2.rel1/binrel"
+GCC_ARM="arm-gnu-toolchain"
+GCC_VERSION="12.2.rel1"
+GCC_PLATFORM="x86_64-arm-none-eabi"
+
+JLINK_VERSION="JLink_Linux_V786a_x86_64"
 
 AM243_SDK_VERSION="08_02_00_31"
 AM243_SYSCFG_VERSION="1.12.1" 
@@ -33,10 +34,11 @@ AM243_SYSCFG_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/sysconfig-${AM243_SYSCFG_VERSION}
 AM243_PRU_COMPILER_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/ti-cgt-pru_${AM243_PRU_COMPILER_VERSION}"
 AM243_PRU_SUPPORT_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/${AM243_PRU_SUPPORT_VERSION}"
 AM243_PRU_SUPPORT_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/${AM243_PRU_SUPPORT_VERSION}"
-PICO_SDK_INSTALL_PATH="${TOOLCHAIN_DIR}/pico/"
+PICO_SDK_INSTALL_PATH="${TOOLCHAIN_DIR}/pico/pico-sdk"
+PICO_EXAMPLES_INSTALL_PATH="${TOOLCHAIN_DIR}/pico/pico-examples"
 
 # Download Links
-GCC_DOWNLOAD_LINK="https://developer.arm.com/-/media/Files/downloads/gnu-rm/${GCC_ONLINE_PATH}/${GCC_ARM}-${GCC_VERSION}-${GCC_PLATFORM}.tar.bz2"
+GCC_DOWNLOAD_LINK="https://developer.arm.com/-/media/Files/downloads/gnu/${GCC_ONLINE_PATH}/${GCC_ARM}-${GCC_VERSION}-${GCC_PLATFORM}.tar.xz"
 JLINK_DOWNLOAD_LINK="https://www.segger.com/downloads/jlink/${JLINK_VERSION}.tgz"
 OPENOCD_DOWNLOAD_LINK="git://git.code.sf.net/p/openocd/code"
 ORBUCULUM_DOWNLOAD_LINK="https://github.com/orbcode/orbuculum.git"
@@ -45,6 +47,7 @@ AM243_SYSCFG_DOWNLOAD_LINK="https://dr-download.ti.com/software-development/ide-
 AM243_PRU_COMPILER_DONWLOAD_LINK="https://software-dl.ti.com/codegen/esd/cgt_public_sw/PRU/${AM243_PRU_COMPILER_VERSION}/ti_cgt_pru_${AM243_PRU_COMPILER_VERSION}_linux_installer_x86.bin"
 AM243_PRU_SUPPORT_DOWNLOAD_LINK="https://git.ti.com/cgit/pru-software-support-package/pru-software-support-package/"
 PICO_SDK_DOWNLOAD_LINK="https://github.com/raspberrypi/pico-sdk"
+PICO_EXAMPLES_DOWNLOAD_LINK="https://github.com/raspberrypi/pico-examples"
 
 # Global options
 GCC=false
@@ -144,7 +147,8 @@ clean() {
 	rm -rf "${AM243_PRU_COMPILER_INSTALL_PATH:?}"
 	rm -rf "${AM243_PRU_SUPPORT_INSTALL_PATH:?}"
 	rm -rf "${PICO_SDK_INSTALL_PATH:?}"
-	
+	rm -rf "${PICO_EXAMPLES_INSTALL_PATH:?}"
+
 	if [ -d "${OPENOCD_INSTALL_PATH:?}" ]; then
 		cd "${OPENOCD_INSTALL_PATH:?}"
 		make uninstall
@@ -213,8 +217,8 @@ install_gcc() {
 	echo -e "${GREEN}Getting GNU Arm GCC Toolchain...${NC}"
 
 	(cd /tmp &&
-		wget --tries 4 --no-check-certificate -c "${GCC_DOWNLOAD_LINK}" -O ${GCC_VERSION}.tar.bz2 &&
-		tar xf ${GCC_VERSION}.tar.bz2 -C ${TOOLCHAIN_DIR})
+		wget --tries 4 --no-check-certificate -c "${GCC_DOWNLOAD_LINK}" -O ${GCC_VERSION}.tar.xz &&
+		tar xf ${GCC_VERSION}.tar.xz -C ${TOOLCHAIN_DIR})
 	exit_code=$?
 	if [[ $exit_code -ne 0 ]]; then
 		rm -rf "${GCC_INSTALL_PATH:?}"
@@ -223,7 +227,7 @@ install_gcc() {
 
 	# Install arm-gcc on system
 	ln -sf "${GCC_INSTALL_PATH:?}"/bin/* /usr/local/bin
-	rm /tmp/${GCC_VERSION}.tar.bz2
+	rm /tmp/${GCC_VERSION}.tar.xz
 }
 
 install_jlink() {
@@ -374,6 +378,14 @@ install_pico_sdk() {
 	if [[ $exit_code -ne 0 ]]; then
 		rm -rf "${PICO_SDK_INSTALL_PATH:?}"
 		echo -e "${RED}ERROR: Isntalling ${PICO_SDK_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
+	fi
+
+	(cd ${TOOLCHAIN_DIR} &&
+		git clone ${PICO_EXAMPLES_DOWNLOAD_LINK} ${PICO_EXAMPLES_INSTALL_PATH} --recursive)
+	exit_code=$?
+	if [[ $exit_code -ne 0 ]]; then
+		rm -rf "${PICO_EXAMPLES_INSTALL_PATH:?}"
+		echo -e "${RED}ERROR: Isntalling ${PICO_EXAMPLES_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
 	fi
 
 	 # Define PICO_SDK_PATH in ~/.bashrc
