@@ -6,17 +6,15 @@ if [ "$(id -u)" -ne 0 ]; then
 	exit 1
 fi
 
-
 TOOLCHAIN_DIR="/opt/toolchain"
 GCC_ONLINE_PATH="12.2.rel1/binrel"
 GCC_ARM="arm-gnu-toolchain"
 GCC_VERSION="12.2.rel1"
 GCC_PLATFORM="x86_64-arm-none-eabi"
-
-JLINK_VERSION="JLink_Linux_V786a_x86_64"
-
+JLINK_VERSION="V786g"
+JSYSTEMVIEW_VERSION="V350a"
 AM243_SDK_VERSION="08_02_00_31"
-AM243_SYSCFG_VERSION="1.12.1" 
+AM243_SYSCFG_VERSION="1.12.1"
 AM243_SYSCFG_BUILD_VERSION="2446"
 AM243_PRU_COMPILER_VERSION="2.3.3"
 AM243_PRU_SUPPORT_VERSION="pru-software-support-package"
@@ -26,7 +24,8 @@ GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
 GCC_INSTALL_PATH="${TOOLCHAIN_DIR}/${GCC_ARM:?}-${GCC_VERSION:?}-${GCC_PLATFORM:?}"
-JLINK_INSTALL_PATH="${TOOLCHAIN_DIR}/${JLINK_VERSION}"
+JLINK_INSTALL_PATH="/opt/SEGGER/JLink_${JLINK_VERSION}"
+JSYSTEMVIEW_INSTALL_PATH="/opt/SEGGER/SystemView_${JSYSTEMVIEW_VERSION}"
 OPENOCD_INSTALL_PATH="${TOOLCHAIN_DIR}/openocd"
 ORBUCULUM_INSTALL_PATH="${TOOLCHAIN_DIR}/orbuculum"
 AM243_SDK_INSTALL_PATH="${TOOLCHAIN_DIR}/ti/mcu_plus_sdk_am243x_${AM243_SDK_VERSION}"
@@ -39,7 +38,9 @@ PICO_EXAMPLES_INSTALL_PATH="${TOOLCHAIN_DIR}/pico/pico-examples"
 
 # Download Links
 GCC_DOWNLOAD_LINK="https://developer.arm.com/-/media/Files/downloads/gnu/${GCC_ONLINE_PATH}/${GCC_ARM}-${GCC_VERSION}-${GCC_PLATFORM}.tar.xz"
-JLINK_DOWNLOAD_LINK="https://www.segger.com/downloads/jlink/${JLINK_VERSION}.tgz"
+JLINK_DOWNLOAD_LINK="https://www.segger.com/downloads/jlink/JLink_Linux_${JLINK_VERSION}_x86_64.deb"
+JSYSTEMVIEW_DOWNLOAD_LINK="https://www.segger.com/downloads/systemview/SystemView_Linux_${JSYSTEMVIEW_VERSION}_x86_64.deb"
+
 OPENOCD_DOWNLOAD_LINK="git://git.code.sf.net/p/openocd/code"
 ORBUCULUM_DOWNLOAD_LINK="https://github.com/orbcode/orbuculum.git"
 AM243_SDK_DOWNLOAD_LINK="https://software-dl.ti.com/mcu-plus-sdk/esd/AM243X/${AM243_SDK_VERSION}/exports/mcu_plus_sdk_am243x_${AM243_SDK_VERSION}-linux-x64-installer.run"
@@ -52,18 +53,20 @@ PICO_EXAMPLES_DOWNLOAD_LINK="https://github.com/raspberrypi/pico-examples"
 # Global options
 GCC=false
 JLINK=false
+JSYSTEMVIEW=false
 OPENOCD=false
 ORBUCULUM=false
 AM243=false
 PICO_SDK=false
 
 display_help() {
-	echo "Usage: $0  [--clean] [--gcc] [--jlink] [--openocd] [--orbuculum] [--pico_sdk]" >&2
+	echo "Usage: $0  [--clean] [--gcc] [--jlink] [--openocd] [--orbuculum] [--pico_sdk] [jsystemview]" >&2
 	echo
 	echo "   default           When no opions are provided, the script checks which tools are installed and only installs the missing ones "
 	echo "   --clean           Cleans /opt/toolchain folder. "
 	echo "   --gcc             Install only gcc (can be combined with other options) "
 	echo "   --jlink           Install only jlink (can be combined with other options) "
+	echo "   --jsystemview	   Install only the segger systemview (can be combined with other options) "
 	echo "   --openocd         Install only openocd (can be combined with other options) "
 	echo "   --orbuculum       Install only orbuculum (can be combined with other options) "
 	echo "   --am243       	   Install only am243 packages (can be combined with other options) "
@@ -73,7 +76,7 @@ display_help() {
 }
 
 parse_arguments() {
-	VALID_ARGS=$(getopt -o '' --long clean,gcc,jlink,openocd,orbuculum,am243,pico_sdk -- "$@")
+	VALID_ARGS=$(getopt -o '' --long clean,gcc,jlink,jsystemview,openocd,orbuculum,am243,pico_sdk -- "$@")
 	if [[ $? -ne 0 ]]; then
 		display_help
 		exit 1
@@ -89,6 +92,10 @@ parse_arguments() {
 			;;
 		--gcc)
 			GCC=true
+			shift
+			;;
+		--jsystemview)
+			JSYSTEMVIEW=true
 			shift
 			;;
 		--jlink)
@@ -129,6 +136,7 @@ parse_arguments() {
 		# Default case. Install all tools
 		GCC=true
 		JLINK=true
+		JSYSTEMVIEW=true
 		OPENOCD=true
 		ORBUCULUM=true
 		AM243=true
@@ -141,6 +149,7 @@ clean() {
 	echo -e "${GREEN}Cleaning up old environment...${NC}"
 	rm -rf "${GCC_INSTALL_PATH:?}"
 	rm -rf "${JLINK_INSTALL_PATH:?}"
+	rm -rf "${JSYSTEMVIEW_INSTALL_PATH:?}"
 	rm -rf "${ORBUCULUM_INSTALL_PATH:?}"
 	rm -rf "${AM243_SDK_INSTALL_PATH:?}"
 	rm -rf "${AM243_SYSCFG_INSTALL_PATH:?}"
@@ -171,6 +180,11 @@ check_tools() {
 		JLINK=false
 	fi
 
+	if [ -d "${JSYSTEMVIEW_INSTALL_PATH:?}" ] && $JLINK; then
+		echo "Found segger system in ${JSYSTEMVIEW_INSTALL_PATH:?}. Skipping installation."
+		JSYSTEMVIEW=false
+	fi
+
 	if [ -d "${OPENOCD_INSTALL_PATH:?}" ] && $OPENOCD; then
 		echo "Found openocd in ${OPENOCD_INSTALL_PATH:?}. Skipping installation."
 		OPENOCD=false
@@ -188,15 +202,15 @@ check_tools() {
 
 	if [ -d "${AM243_SDK_INSTALL_PATH:?}" ] &&
 		[ -d "${AM243_SYSCFG_INSTALL_PATH:?}" ] &&
-		[ -d "${AM243_PRU_COMPILER_INSTALL_PATH:?}" ] && 
+		[ -d "${AM243_PRU_COMPILER_INSTALL_PATH:?}" ] &&
 		[ -d "${AM243_PRU_SUPPORT_INSTALL_PATH:?}" ] && $AM243; then
 
 		echo "Found am243 packages in " \	
-				"${AM243_SDK_INSTALL_PATH:?};" \
-				"${AM243_SYSCFG_INSTALL_PATH:?};" \
-				"${AM243_PRU_COMPILER_INSTALL_PATH:?};" \
-				"${AM243_PRU_SUPPORT_INSTALL_PATH:?}." \
-				"Skipping installation."
+		"${AM243_SDK_INSTALL_PATH:?};" \
+			"${AM243_SYSCFG_INSTALL_PATH:?};" \
+			"${AM243_PRU_COMPILER_INSTALL_PATH:?};" \
+			"${AM243_PRU_SUPPORT_INSTALL_PATH:?}." \
+			"Skipping installation."
 		AM243=false
 	fi
 }
@@ -235,15 +249,17 @@ install_jlink() {
 	echo -e "${GREEN}Getting JLink...${NC}"
 
 	(cd /tmp &&
-		wget --tries 4 --no-check-certificate --post-data="accept_license_agreement=accepted&submit=Download&nbspsoftware" -c "${JLINK_DOWNLOAD_LINK}" -O ${JLINK_VERSION}.tgz &&
-		tar xvzf ${JLINK_VERSION}.tgz -C ${TOOLCHAIN_DIR})
+		wget --tries 4 --no-check-certificate --post-data="accept_license_agreement=accepted&submit=Download&nbspsoftware" -c "${JLINK_DOWNLOAD_LINK}" -O ${JLINK_VERSION}.deb &&
+		chmod 744 ${JLINK_VERSION}.deb &&
+		dpkg --unpack ${JLINK_VERSION}.deb &&
+		rm /var/lib/dpkg/info/jlink.postinst -f &&
+		apt install -yf &&
+		rm ${JLINK_VERSION}.deb)
 	exit_code=$?
 	if [[ $exit_code -ne 0 ]]; then
 		rm -rf "${JLINK_INSTALL_PATH:?}"
 		echo -e "${RED}ERROR: Install of ${JLINK_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
 	fi
-
-	cp ${JLINK_INSTALL_PATH:?}/99-jlink.rules /etc/udev/rules.d/99-jlink.rules
 
 	# WSL2 udev bug fix
 	if grep -q icrosoft /proc/version; then
@@ -251,7 +267,24 @@ install_jlink() {
 		udevadm control --reload
 	fi
 
-	rm /tmp/${JLINK_VERSION}.tgz
+}
+
+install_jsystemview() {
+	echo -e "${GREEN}Getting Systemview...${NC}"
+
+	(cd /tmp &&
+		wget --tries 4 --no-check-certificate --post-data="accept_license_agreement=accepted&submit=Download&nbspsoftware" -c "${JSYSTEMVIEW_DOWNLOAD_LINK}" -O ${JSYSTEMVIEW_VERSION}.deb &&
+		chmod 744 ${JSYSTEMVIEW_VERSION}.deb &&
+		apt install -f ./${JSYSTEMVIEW_VERSION}.deb &&
+		rm ${JSYSTEMVIEW_VERSION}.deb)
+	exit_code=$?
+	if [[ $exit_code -ne 0 ]]; then
+		rm -rf "${JSYSTEMVIEW_INSTALL_PATH:?}"
+		echo -e "${RED}ERROR: Install of ${JSYSTEMVIEW_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
+	fi
+
+	# Fix missing libudev path
+	ln -s /lib/x86_64-linux-gnu/libudev.so.1 /lib/x86_64-linux-gnu/libudev.so.0
 }
 
 install_openocd() {
@@ -305,22 +338,22 @@ install_am243() {
 
 	# Download and install am243 mcu sdk (needs manual download for latest version)
 	if [ $AM243_SDK_VERSION != "08_02_00_31" ]; then
-		(cd /tmp \
-			&& wget --tries 4 --no-check-certificate -c "${AM243_SDK_DOWNLOAD_LINK}" -O ${AM243_SDK_VERSION}.run \
-			&& chmod 744 ${AM243_SDK_VERSION}.run \
-			&& ./${AM243_SDK_VERSION}.run --prefix "${TOOLCHAIN_DIR}/ti/" --mode unattended \
-			&& rm ${AM243_SDK_VERSION}.run)
+		(cd /tmp &&
+			wget --tries 4 --no-check-certificate -c "${AM243_SDK_DOWNLOAD_LINK}" -O ${AM243_SDK_VERSION}.run &&
+			chmod 744 ${AM243_SDK_VERSION}.run &&
+			./${AM243_SDK_VERSION}.run --prefix "${TOOLCHAIN_DIR}/ti/" --mode unattended &&
+			rm ${AM243_SDK_VERSION}.run)
 		exit_code=$?
 		if [[ $exit_code -ne 0 ]]; then
-		    rm -rf "${AM243_SDK_INSTALL_PATH:?}"
-		    echo -e "${RED}ERROR: Install of ${AM243_SDK_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
+			rm -rf "${AM243_SDK_INSTALL_PATH:?}"
+			echo -e "${RED}ERROR: Install of ${AM243_SDK_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
 		fi
 	else
 
 		# Download latest version and save it in the tmp folder
-		(cd /tmp \
-			&& chmod 744 ${AM243_SDK_VERSION}.run \
-			&& ./${AM243_SDK_VERSION}.run --prefix "${TOOLCHAIN_DIR}/ti/" --mode unattended )
+		(cd /tmp &&
+			chmod 744 ${AM243_SDK_VERSION}.run &&
+			./${AM243_SDK_VERSION}.run --prefix "${TOOLCHAIN_DIR}/ti/" --mode unattended)
 		exit_code=$?
 		if [[ $exit_code -ne 0 ]]; then
 			rm -rf "${AM243_SDK_INSTALL_PATH:?}"
@@ -329,43 +362,43 @@ install_am243() {
 	fi
 
 	# Download and install sysconfig tool
-	(cd /tmp \
-		&& wget --tries 4 --no-check-certificate -c "${AM243_SYSCFG_DOWNLOAD_LINK}" -O ${AM243_SYSCFG_VERSION}.run \
-		&& chmod 744 ${AM243_SYSCFG_VERSION}.run \
-		&& ./${AM243_SYSCFG_VERSION}.run --prefix "${AM243_SYSCFG_INSTALL_PATH}" --mode unattended \
-		&& rm ${AM243_SYSCFG_VERSION}.run)
+	(cd /tmp &&
+		wget --tries 4 --no-check-certificate -c "${AM243_SYSCFG_DOWNLOAD_LINK}" -O ${AM243_SYSCFG_VERSION}.run &&
+		chmod 744 ${AM243_SYSCFG_VERSION}.run &&
+		./${AM243_SYSCFG_VERSION}.run --prefix "${AM243_SYSCFG_INSTALL_PATH}" --mode unattended &&
+		rm ${AM243_SYSCFG_VERSION}.run)
 	exit_code=$?
-    if [[ $exit_code -ne 0 ]]; then
+	if [[ $exit_code -ne 0 ]]; then
 		rm -rf "${AM243_SDK_INSTALL_PATH:?}"
-        rm -rf "${AM243_SYSCFG_INSTALL_PATH:?}"
-        echo -e "${RED}ERROR: Install of ${AM243_SYSCFG_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
-    fi
+		rm -rf "${AM243_SYSCFG_INSTALL_PATH:?}"
+		echo -e "${RED}ERROR: Install of ${AM243_SYSCFG_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
+	fi
 
 	# Download and install pru compiler
-	(cd /tmp \
-		&& wget --tries 4 --no-check-certificate -c "${AM243_PRU_COMPILER_DONWLOAD_LINK}" -O ${AM243_PRU_COMPILER_VERSION}.bin \
-		&& chmod 744 ${AM243_PRU_COMPILER_VERSION}.bin \
-		&& ./${AM243_PRU_COMPILER_VERSION}.bin --prefix "${TOOLCHAIN_DIR}/ti/" --mode unattended \
-		&& rm ${AM243_PRU_COMPILER_VERSION}.bin)
+	(cd /tmp &&
+		wget --tries 4 --no-check-certificate -c "${AM243_PRU_COMPILER_DONWLOAD_LINK}" -O ${AM243_PRU_COMPILER_VERSION}.bin &&
+		chmod 744 ${AM243_PRU_COMPILER_VERSION}.bin &&
+		./${AM243_PRU_COMPILER_VERSION}.bin --prefix "${TOOLCHAIN_DIR}/ti/" --mode unattended &&
+		rm ${AM243_PRU_COMPILER_VERSION}.bin)
 	exit_code=$?
-    if [[ $exit_code -ne 0 ]]; then
+	if [[ $exit_code -ne 0 ]]; then
 		rm -rf "${AM243_SDK_INSTALL_PATH:?}"
-        rm -rf "${AM243_SYSCFG_INSTALL_PATH:?}"
-        rm -rf "${AM243_PRU_COMPILER_INSTALL_PATH:?}"
-        echo -e "${RED}ERROR: Install of ${AM243_PRU_COMPILER_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
-    fi
+		rm -rf "${AM243_SYSCFG_INSTALL_PATH:?}"
+		rm -rf "${AM243_PRU_COMPILER_INSTALL_PATH:?}"
+		echo -e "${RED}ERROR: Install of ${AM243_PRU_COMPILER_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
+	fi
 
 	# Download and install pru suport package
 	(cd ${TOOLCHAIN_DIR}/ti &&
-        git clone ${AM243_PRU_SUPPORT_DOWNLOAD_LINK} ${AM243_PRU_SUPPORT_VERSION})
-    exit_code=$?
-    if [[ $exit_code -ne 0 ]]; then
+		git clone ${AM243_PRU_SUPPORT_DOWNLOAD_LINK} ${AM243_PRU_SUPPORT_VERSION})
+	exit_code=$?
+	if [[ $exit_code -ne 0 ]]; then
 		rm -rf "${AM243_SDK_INSTALL_PATH:?}"
-        rm -rf "${AM243_SYSCFG_INSTALL_PATH:?}"
-        rm -rf "${AM243_PRU_COMPILER_INSTALL_PATH:?}"
-        rm -rf "${AM243_PRU_SUPPORT_INSTALL_PATH:?}"
-        echo -e "${RED}ERROR: Install of ${AM243_PRU_SUPPORT_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
-    fi
+		rm -rf "${AM243_SYSCFG_INSTALL_PATH:?}"
+		rm -rf "${AM243_PRU_COMPILER_INSTALL_PATH:?}"
+		rm -rf "${AM243_PRU_SUPPORT_INSTALL_PATH:?}"
+		echo -e "${RED}ERROR: Install of ${AM243_PRU_SUPPORT_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
+	fi
 }
 
 install_pico_sdk() {
@@ -388,10 +421,10 @@ install_pico_sdk() {
 		echo -e "${RED}ERROR: Isntalling ${PICO_EXAMPLES_INSTALL_PATH} failed. Aborting installation.${NC}" && exit 1
 	fi
 
-	 # Define PICO_SDK_PATH in ~/.bashrc
+	# Define PICO_SDK_PATH in ~/.bashrc
 	VARNAME="PICO_SDK_PATH"
 	echo -e "Adding $VARNAME to ~/.bashrc"
-	echo -e "export $VARNAME=$PICO_SDK_INSTALL_PATH" >> ~/.bashrc
+	echo -e "export $VARNAME=$PICO_SDK_INSTALL_PATH" >>~/.bashrc
 	export ${VARNAME}=${PICO_SDK_INSTALL_PATH}
 }
 
@@ -406,6 +439,10 @@ install_packages() {
 
 	if $JLINK; then
 		install_jlink
+	fi
+
+	if $JSYSTEMVIEW; then
+		install_jsystemview
 	fi
 
 	if $OPENOCD; then
