@@ -242,6 +242,9 @@ install_gcc() {
 	# Install arm-gcc on system
 	ln -sf "${GCC_INSTALL_PATH:?}"/bin/* /usr/local/bin
 	rm /tmp/${GCC_VERSION}.tar.xz
+
+	# Install gdb multiarch, since arm doesn't provide python binding anymore
+	apt install -y gdb-multiarch
 }
 
 install_jlink() {
